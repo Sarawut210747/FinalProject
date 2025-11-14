@@ -939,28 +939,18 @@ MonoBehaviour:
   goldText: {fileID: 774275140}
   offlineRewardText: {fileID: 0}
   monthlyRewardText: {fileID: 0}
-  monthlySalary: 0
   gameYear: 1
   gameMonth: 1
   gameDay: 1
   daysPerMonth: 30
   dateText: {fileID: 471068479}
   realSecondsPerDay: 1
-  rooms:
-  - roomName: Room
-    rentPrice: 500
-    isRented: 0
-    roomType: {fileID: 11400000, guid: eb7455d5c9385be44abdb5844973e5c5, type: 2}
-    roomSprite: {fileID: 21300000, guid: dd7ad7d6636fb594ba1b1dcb059117be, type: 3}
-    rentStartYear: 0
-    rentStartMonth: 0
-    rentStartDay: 0
-    rentDurationDays: 30
-  customerSpawnChancePerDay: 0.3
+  rooms: []
+  customerSpawnChancePerDay: 1
   roomViewPrefab: {fileID: 2129597294912465666, guid: e63580b2043a1b3459e3e4aa45087ced, type: 3}
   roomSlotPrefab: {fileID: 7243816218661341029, guid: 1efe38aa55b57934a93aa33c9a42ea27, type: 3}
   roomContainer: {fileID: 1699850125}
-  totalRoomSlots: 2
+  totalRoomSlots: 3
 --- !u!4 &1309939314
 Transform:
   m_ObjectHideFlags: 0
@@ -1276,11 +1266,11 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1980286252}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0.5, y: 0}
+  m_AnchorMax: {x: 0.5, y: 0}
+  m_AnchoredPosition: {x: -680, y: 600}
   m_SizeDelta: {x: 100, y: 100}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_Pivot: {x: 0.5, y: 0}
 --- !u!114 &1699850126
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1298,11 +1288,11 @@ MonoBehaviour:
     m_Right: 0
     m_Top: 0
     m_Bottom: 0
-  m_ChildAlignment: 0
-  m_StartCorner: 0
+  m_ChildAlignment: 6
+  m_StartCorner: 2
   m_StartAxis: 0
   m_CellSize: {x: 160, y: 160}
-  m_Spacing: {x: 20, y: 20}
+  m_Spacing: {x: 500, y: 500}
   m_Constraint: 1
   m_ConstraintCount: 3
 --- !u!1 &1980286248

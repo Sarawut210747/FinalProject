@@ -21,8 +21,6 @@ public class IdleManager : MonoBehaviour
     // ------------------------------
     // เงินเดือนพื้นฐาน (ไม่เกี่ยวกับค่าเช่าห้อง)
     // ------------------------------
-    [Header("Monthly Salary (Base Income)")]
-    public float monthlySalary = 1000f;        // เงินเดือนที่ได้ทุกวันที่ 1
 
     // key สำหรับเซฟว่าจ่ายเงินเดือนของเดือนนี้ไปรึยัง
     const string KEY_LAST_MONTHLY_YEAR = "IDLE_LAST_MONTHLY_YEAR";
@@ -80,7 +78,7 @@ public class IdleManager : MonoBehaviour
     public Transform roomContainer;
     public int totalRoomSlots;
 
-    private RoomView[] roomViews;
+    // private RoomView[] roomViews;
     // prefix สำหรับ key ของข้อมูลห้องใน PlayerPrefs
     const string KEY_ROOM_PREFIX = "IDLE_ROOM_";
 
@@ -280,10 +278,8 @@ public class IdleManager : MonoBehaviour
         // เงื่อนไข: เป็นวันที่ 1 และยังไม่จ่ายของเดือนนี้
         if (!alreadyPaidThisMonth && gameDay == 1)
         {
-            currentGold += monthlySalary;
-
-            if (monthlyRewardText != null)
-                monthlyRewardText.text = $"เงินเดือนพื้นฐาน +{monthlySalary}";
+            // if (monthlyRewardText != null)
+            //     monthlyRewardText.text = $"เงินเดือนพื้นฐาน +{monthlySalary}";
 
             PlayerPrefs.SetInt(KEY_LAST_MONTHLY_YEAR, gameYear);
             PlayerPrefs.SetInt(KEY_LAST_MONTHLY_MONTH, gameMonth);
@@ -414,7 +410,7 @@ public class IdleManager : MonoBehaviour
         Debug.Log($"[RentRoom] Customer moved into Room {r.roomName} at {gameDay}/{gameMonth}/{gameYear}");
 
         // **อัปเดตรูปห้องให้รู้ว่ามีลูกค้าแล้ว**
-        UpdateRoomView(index);
+        //UpdateRoomView(index);
     }
 
     // ------------------------------
@@ -508,13 +504,13 @@ public class IdleManager : MonoBehaviour
             }
         }
 
-        roomViews = new RoomView[rooms.Count];
+        // roomViews = new RoomView[rooms.Count];
 
         for (int i = 0; i < rooms.Count; i++)
         {
             // สร้าง RoomView ใต้ roomContainer
             RoomView view = Instantiate(roomViewPrefab, roomContainer);
-            roomViews[i] = view;
+            // roomViews[i] = view;
 
             // เซ็ตข้อมูลเริ่มต้น
             Sprite sprite = rooms[i].roomSprite;
@@ -524,16 +520,16 @@ public class IdleManager : MonoBehaviour
         }
     }
     // อัปเดตหน้าตาของห้องห้องเดียว
-    void UpdateRoomView(int index)
-    {
-        if (roomViews == null) return;
-        if (index < 0 || index >= roomViews.Length) return;
+    // void UpdateRoomView(int index)
+    // {
+    //     if (roomViews == null) return;
+    //     if (index < 0 || index >= roomViews.Length) return;
 
-        Sprite sprite = rooms[index].roomSprite;
-        bool isRented = rooms[index].isRented;
+    //     Sprite sprite = rooms[index].roomSprite;
+    //     bool isRented = rooms[index].isRented;
 
-        roomViews[index].Setup(sprite, isRented);
-    }
+    //     roomViews[index].Setup(sprite, isRented);
+    // }
     public void BeginPlacementMode(RoomTypeSO type)
     {
         isPlacingRoom = true;
@@ -554,7 +550,7 @@ public class IdleManager : MonoBehaviour
         // เช็คว่า index อยู่ในขอบเขต array
         if (index < 0 || index >= rooms.Count)
         {
-            Debug.Log("Invalid room index");
+            Debug.LogWarning($"TryPlaceRoom index out of range: {index}, rooms.Count = {rooms.Count}");
             return;
         }
 
@@ -573,7 +569,7 @@ public class IdleManager : MonoBehaviour
         rooms[index].rentStartDay = 0;
 
         // อัปเดต UI ห้องนั้น
-        UpdateRoomView(index);
+        //UpdateRoomView(index);
 
         Debug.Log("Room placed at slot " + index);
 
@@ -595,7 +591,7 @@ public class IdleManager : MonoBehaviour
             Debug.LogError("RoomContainer is NULL!");
             return;
         }
-        roomViews = new RoomView[totalRoomSlots];
+        // roomViews = new RoomView[totalRoomSlots];
         rooms = new List<Room>();
 
         for (int i = 0; i < totalRoomSlots; i++)
@@ -606,25 +602,25 @@ public class IdleManager : MonoBehaviour
             ui.idleManager = this;
 
             RoomView view = slot.GetComponent<RoomView>();
-            roomViews[i] = view;
+            // roomViews[i] = view;
 
-            rooms[i] = new Room(); // ห้องใหม่ทั้งหมดเริ่มเป็นห้องว่าง
+            //rooms[i] = new Room(); // ห้องใหม่ทั้งหมดเริ่มเป็นห้องว่าง
             rooms.Add(new Room());
         }
     }
-    public void BuyRoom(RoomTypeSO type)
-    {
-        if (currentGold < type.Cost)
-        {
-            Debug.Log("Not enough gold.");
-            return;
-        }
+    // public void BuyRoom(RoomTypeSO type)
+    // {
+    //     if (currentGold < type.Cost)
+    //     {
+    //         Debug.Log("Not enough gold.");
+    //         return;
+    //     }
 
-        currentGold -= type.Cost;
-        roomToPlace = type;
-        isPlacingRoom = true;
+    //     currentGold -= type.Cost;
+    //     roomToPlace = type;
+    //     isPlacingRoom = true;
 
-        UpdateGoldUI();
-    }
+    //     UpdateGoldUI();
+    // }
 
 }
