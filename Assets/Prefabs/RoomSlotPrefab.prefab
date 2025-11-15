@@ -147,3 +147,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   slotIndex: 0
   idleManager: {fileID: 0}
+  placementManager: {fileID: 0}
+  highlightObject: {fileID: 0}

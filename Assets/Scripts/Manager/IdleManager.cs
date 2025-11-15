@@ -17,7 +17,6 @@ public class IdleManager : MonoBehaviour
     public TMP_Text offlineRewardText;         // ไว้โชว์ข้อความอื่น ๆ (จะไม่ใช้ก็ได้)
     public TMP_Text monthlyRewardText;         // Text แสดงข้อความรายได้ของเดือนนั้น (เงินเดือน)
 
-
     // ------------------------------
     // เงินเดือนพื้นฐาน (ไม่เกี่ยวกับค่าเช่าห้อง)
     // ------------------------------
@@ -53,19 +52,7 @@ public class IdleManager : MonoBehaviour
     // ห้อง + รูปห้อง
     // ------------------------------
     [Header("Rooms Setting")]
-    public List<Room> rooms = new List<Room>();         // เริ่มจาก 1 ห้อง (ไปตั้ง Size ใน Inspector ได้)
-
-    // ------------------------------
-    // ฟังก์ชันช่วยคำนวณจำนวนวันระหว่างวันที่ 2 วัน
-    // ใช้สำหรับเช็คว่าอยู่ครบสัญญารึยัง
-    // ------------------------------
-    int CountDaysPassed(int y1, int m1, int d1, int y2, int m2, int d2)
-    {
-        // นิยาม: 1 ปี = 360 วัน (12 เดือน * 30 วัน)
-        int days1 = y1 * 360 + (m1 - 1) * 30 + d1;
-        int days2 = y2 * 360 + (m2 - 1) * 30 + d2;
-        return days2 - days1;
-    }
+    public List<Room> rooms = new List<Room>();         // ห้องทั้งหมด (หนึ่งรายการต่อ 1 ช่อง)
 
     [Header("Customer Settings")]
     [Range(0f, 1f)]
@@ -78,17 +65,30 @@ public class IdleManager : MonoBehaviour
     public Transform roomContainer;
     public int totalRoomSlots;
 
-    // private RoomView[] roomViews;
+    // public RoomView[] roomViews; // ถ้านายอยากเก็บอ้างอิงแต่ละ RoomView ทีหลังค่อยเปิดใช้
+
     // prefix สำหรับ key ของข้อมูลห้องใน PlayerPrefs
     const string KEY_ROOM_PREFIX = "IDLE_ROOM_";
+
+    // ฟังก์ชันช่วยคำนวณจำนวนวันระหว่างวันที่ 2 วัน
+    // ใช้สำหรับเช็คว่าอยู่ครบสัญญารึยัง
+    int CountDaysPassed(int y1, int m1, int d1, int y2, int m2, int d2)
+    {
+        // นิยาม: 1 ปี = 360 วัน (12 เดือน * 30 วัน)
+        int days1 = y1 * 360 + (m1 - 1) * 30 + d1;
+        int days2 = y2 * 360 + (m2 - 1) * 30 + d2;
+        return days2 - days1;
+    }
 
     // ฟังก์ชันช่วยสร้างชื่อ key เช่น "IDLE_ROOM_0_IS_RENTED"
     string GetRoomKey(int index, string field)
     {
         return KEY_ROOM_PREFIX + index + "_" + field;
     }
-    private bool isPlacingRoom = false;
-    private RoomTypeSO roomToPlace = null;
+
+    // ตัวจัดการโหมดวางห้อง (ระบบ B)
+    [Header("Placement")]
+    public RoomPlacementManager placementManager;
 
     // ==========================================================
     #region Start & Update
@@ -107,8 +107,11 @@ public class IdleManager : MonoBehaviour
         // อัปเดต UI เบื้องต้น
         UpdateDateUI();
         UpdateGoldUI();
+
+        // สร้าง UI ห้อง + Slot
         CreateRoomViews();
         GenerateRoomSlots();
+
         // เซฟเวลาปัจจุบันไว้เป็นจุดอ้างอิงสำหรับออฟไลน์รอบหน้า
         PlayerPrefs.SetString(KEY_LAST_REAL_TIME, DateTime.UtcNow.Ticks.ToString());
     }
@@ -147,7 +150,7 @@ public class IdleManager : MonoBehaviour
         PlayerPrefs.SetFloat("IDLE_GOLD", currentGold);
 
         SaveGameDate();   // เซฟวันที่
-        SaveRooms();      // 🟢 เซฟสถานะห้อง (ลูกค้า, วันเริ่มเช่า, สัญญา)
+        SaveRooms();      // เซฟสถานะห้อง (ลูกค้า, สัญญา ฯลฯ)
 
         // เซฟเวลาปัจจุบันไว้ใช้คำนวณออฟไลน์รอบหน้า
         PlayerPrefs.SetString(KEY_LAST_REAL_TIME, DateTime.UtcNow.Ticks.ToString());
@@ -157,9 +160,6 @@ public class IdleManager : MonoBehaviour
 
     // --------------------------------------------------------
     // เซฟสถานะ "ห้อง" ทุกห้องลง PlayerPrefs
-    // - เซฟว่าเช่ารึยัง (isRented)
-    // - เซฟวันเริ่มเช่า (rentStartYear/Month/Day)
-    // - เซฟระยะเวลาสัญญา (rentDurationDays)
     // --------------------------------------------------------
     void SaveRooms()
     {
@@ -177,9 +177,9 @@ public class IdleManager : MonoBehaviour
             PlayerPrefs.SetInt(GetRoomKey(i, "DURATION"), r.rentDurationDays);
         }
     }
+
     // --------------------------------------------------------
     // โหลดสถานะห้องจาก PlayerPrefs กลับเข้า rooms[]
-    // ถ้าไม่มี key นั้น ๆ จะใช้ค่าที่ตั้งใน Inspector ตามเดิม
     // --------------------------------------------------------
     void LoadRooms()
     {
@@ -198,12 +198,9 @@ public class IdleManager : MonoBehaviour
             r.rentStartMonth = PlayerPrefs.GetInt(GetRoomKey(i, "START_MONTH"), 0);
             r.rentStartDay = PlayerPrefs.GetInt(GetRoomKey(i, "START_DAY"), 0);
 
-            // เผื่อในอนาคตอยากเปลี่ยนระยะสัญญาแล้วเซฟไว้
             r.rentDurationDays = PlayerPrefs.GetInt(GetRoomKey(i, "DURATION"), r.rentDurationDays);
         }
     }
-
-
 
     void LoadGold()
     {
@@ -264,9 +261,60 @@ public class IdleManager : MonoBehaviour
         return false;
     }
 
+    // =========================
+    // ฟังก์ชันช่วยสำหรับ "ระบบวางห้องแบบใหม่ (B)"
+    // ใช้กับ RoomPlacementManager
+    // =========================
+
+    // เช็คว่ายังวางห้องที่ index นี้ได้ไหม (ยังไม่มี roomType)
+    public bool CanPlaceRoomAt(int index)
+    {
+        if (index < 0 || index >= rooms.Count)
+            return false;
+
+        return rooms[index].roomType == null;
+    }
+
+    // วางห้องชนิด type ลงไปที่ index นี้
+    public void PlaceRoomAtIndex(int index, RoomTypeSO type)
+    {
+        if (index < 0 || index >= rooms.Count)
+        {
+            Debug.LogWarning($"PlaceRoomAtIndex index out of range: {index}, rooms.Count = {rooms.Count}");
+            return;
+        }
+
+        Room r = rooms[index];
+
+        if (r.roomType != null)
+        {
+            Debug.Log("This slot already has a room!");
+            return;
+        }
+
+        // เซ็ตข้อมูลห้อง
+        r.roomType = type;
+        r.roomName = type.roomName;
+        r.roomSprite = type.roomSprite;
+        r.rentPrice = (int)type.rentPrice;
+        r.isRented = false;
+
+        // ตั้งสัญญาพื้นฐาน (ตอนนี้ให้เริ่มนับเลย)
+        r.rentStartYear = gameYear;
+        r.rentStartMonth = gameMonth;
+        r.rentStartDay = gameDay;
+        r.rentDurationDays = type.rentDurationDays;
+
+        Debug.Log("Room placed at slot " + index);
+
+        // TODO: ถ้ามีระบบ RoomView แยกอยากอัปเดต sprite เพิ่มเติม
+        // เช่นเก็บ RoomView[] และเรียก view.Setup(r.roomSprite, r.isRented);
+
+        SaveRooms();
+    }
+
     // ------------------------------
     // เงินเดือนพื้นฐาน (ไม่รวมค่าเช่าห้อง)
-    // จ่ายเมื่อวันที่ 1 ของเดือน และยังไม่ได้จ่ายเดือนนี้
     // ------------------------------
     void CheckMonthlySalary()
     {
@@ -278,8 +326,7 @@ public class IdleManager : MonoBehaviour
         // เงื่อนไข: เป็นวันที่ 1 และยังไม่จ่ายของเดือนนี้
         if (!alreadyPaidThisMonth && gameDay == 1)
         {
-            // if (monthlyRewardText != null)
-            //     monthlyRewardText.text = $"เงินเดือนพื้นฐาน +{monthlySalary}";
+            // ถ้านายอยากได้เงินเดือนพื้นฐานเพิ่ม gold ตรงนี้ได้
 
             PlayerPrefs.SetInt(KEY_LAST_MONTHLY_YEAR, gameYear);
             PlayerPrefs.SetInt(KEY_LAST_MONTHLY_MONTH, gameMonth);
@@ -317,9 +364,6 @@ public class IdleManager : MonoBehaviour
 
     // ------------------------------
     // ข้ามวันในเกม 1 วัน
-    // - ข้ามเดือน/ปีถ้าถึง limit
-    // - เช็คสัญญาหมดอายุ
-    // - เช็คเงินเดือน
     // ------------------------------
     public void AdvanceOneDay()
     {
@@ -340,7 +384,7 @@ public class IdleManager : MonoBehaviour
         // เช็คสัญญาหมดอายุ
         CheckRoomContracts();
 
-        // 👇 เพิ่มตรงนี้: ลองสุ่มลูกค้าเข้า เมื่อมีห้องว่าง
+        // สุ่มลูกค้าเข้าเมื่อมีห้องว่าง
         TryAutoRentRoomPerDay();
 
         // เช็คเงินเดือนพื้นฐาน
@@ -349,7 +393,6 @@ public class IdleManager : MonoBehaviour
         UpdateDateUI();
         SaveGameDate();
     }
-
 
     // ------------------------------
     // ปุ่ม Reset เกม (ล้างเซฟทั้งหมด)
@@ -370,6 +413,8 @@ public class IdleManager : MonoBehaviour
             r.rentStartYear = 0;
             r.rentStartMonth = 0;
             r.rentStartDay = 0;
+            r.roomType = null;
+            r.roomSprite = null;
         }
 
         UpdateGoldUI();
@@ -377,40 +422,31 @@ public class IdleManager : MonoBehaviour
         SaveData();
 
         if (monthlyRewardText != null) monthlyRewardText.text = "";
-        if (offlineRewardText != null) offlineRewardText.text = "";
+        if (offlineRewardText != null) monthlyRewardText.text = "";
 
         Debug.Log("Game Reset Complete!");
     }
 
     // ------------------------------------------------------------------
     // ฟังก์ชันให้ "ลูกค้าเข้าห้อง" ตาม index ของห้อง
-    // index = หมายเลขห้องใน Array rooms[]
     // ------------------------------------------------------------------
     public void RentRoom(int index)
     {
-        // ถ้าหลุดขอบ array ก็ไม่ต้องทำอะไร
         if (index < 0 || index >= rooms.Count)
             return;
 
-        // เลือกห้องตาม index
         Room r = rooms[index];
 
-        // ถ้าห้องนี้มีลูกค้าอยู่แล้ว ก็ไม่ต้องทำอะไร
         if (r.isRented)
             return;
 
-        // ตั้งให้ห้องนี้มีลูกค้า
         r.isRented = true;
 
-        // บันทึกวันที่เริ่มเช่า
         r.rentStartYear = gameYear;
         r.rentStartMonth = gameMonth;
         r.rentStartDay = gameDay;
 
         Debug.Log($"[RentRoom] Customer moved into Room {r.roomName} at {gameDay}/{gameMonth}/{gameYear}");
-
-        // **อัปเดตรูปห้องให้รู้ว่ามีลูกค้าแล้ว**
-        //UpdateRoomView(index);
     }
 
     // ------------------------------
@@ -418,34 +454,30 @@ public class IdleManager : MonoBehaviour
     // ------------------------------
     void TryAutoRentRoomPerDay()
     {
-        // หา "ห้องว่าง" ห้องแรก
         int freeIndex = -1;
         for (int i = 0; i < rooms.Count; i++)
         {
-            if (!rooms[i].isRented)
+            if (!rooms[i].isRented && rooms[i].roomType != null)
             {
                 freeIndex = i;
                 break;
             }
         }
 
-        // ถ้าไม่มีห้องว่าง → ไม่ต้องทำอะไร
         if (freeIndex == -1)
             return;
 
-        // สุ่ม 0–1 ถ้าน้อยกว่าหรือเท่าค่า customerSpawnChancePerDay → ให้ลูกค้าเข้าห้อง
         float roll = UnityEngine.Random.value;
 
         if (roll <= customerSpawnChancePerDay)
         {
-            RentRoom(freeIndex);  // ใช้ฟังก์ชันที่เราเขียนไว้แล้ว
+            RentRoom(freeIndex);
             Debug.Log($"[Auto] Customer moved into {rooms[freeIndex].roomName}");
         }
     }
 
-
     // ------------------------------
-    // บังคับให้ลูกค้าย้ายออก (ใช้ได้ทั้งจากปุ่ม หรือจากระบบสัญญาหมด)
+    // บังคับให้ลูกค้าย้ายออก
     // ------------------------------
     public void ForceMoveOut(int index)
     {
@@ -460,12 +492,10 @@ public class IdleManager : MonoBehaviour
         r.rentStartDay = 0;
 
         Debug.Log($"Room {r.roomName} -> ลูกค้าย้ายออก");
-
     }
 
     // ------------------------------
     // เช็คสัญญาของทุกห้อง ว่าครบ rentDurationDays รึยัง
-    // ถ้าครบ → ย้ายออกอัตโนมัติ
     // ------------------------------
     void CheckRoomContracts()
     {
@@ -476,7 +506,6 @@ public class IdleManager : MonoBehaviour
             if (!r.isRented)
                 continue;
 
-            // ถ้ายังไม่มีวันเริ่มต้น (0/0/0) แสดงว่ายังไม่ได้ตั้ง → ข้ามไปก่อน
             if (r.rentStartYear == 0 || r.rentStartMonth == 0 || r.rentStartDay == 0)
                 continue;
 
@@ -492,10 +521,13 @@ public class IdleManager : MonoBehaviour
             }
         }
     }
+
+    // ------------------------------
     // สร้าง UI ห้องตามจำนวน rooms[]
+    // ------------------------------
     void CreateRoomViews()
     {
-        // ลบลูกเก่าออกก่อน (กันกรณีมีของเก่า)
+        // ถ้าไม่จำเป็นจะใช้ RoomView แยก สามารถคอมเมนต์ฟังก์ชันนี้ทิ้งได้
         if (roomContainer != null)
         {
             for (int i = roomContainer.childCount - 1; i >= 0; i--)
@@ -504,123 +536,37 @@ public class IdleManager : MonoBehaviour
             }
         }
 
-        // roomViews = new RoomView[rooms.Count];
-
-        for (int i = 0; i < rooms.Count; i++)
-        {
-            // สร้าง RoomView ใต้ roomContainer
-            RoomView view = Instantiate(roomViewPrefab, roomContainer);
-            // roomViews[i] = view;
-
-            // เซ็ตข้อมูลเริ่มต้น
-            Sprite sprite = rooms[i].roomSprite;
-            bool isRented = rooms[i].isRented;
-
-            view.Setup(sprite, isRented);
-        }
+        // ถ้านายใช้ roomSlotPrefab ที่ข้างในมี RoomView อยู่แล้ว
+        // สามารถไม่ใช้ฟังก์ชันนี้ก็ได้
     }
-    // อัปเดตหน้าตาของห้องห้องเดียว
-    // void UpdateRoomView(int index)
-    // {
-    //     if (roomViews == null) return;
-    //     if (index < 0 || index >= roomViews.Length) return;
 
-    //     Sprite sprite = rooms[index].roomSprite;
-    //     bool isRented = rooms[index].isRented;
-
-    //     roomViews[index].Setup(sprite, isRented);
-    // }
-    public void BeginPlacementMode(RoomTypeSO type)
-    {
-        isPlacingRoom = true;
-        roomToPlace = type;
-        Debug.Log("Select a slot to place new room");
-    }
     // ------------------------------
-    // ฟังก์ชันวางห้องลง Slot
+    // สร้าง Slot ห้องจริง (UI/Prefab) + เตรียม rooms list
     // ------------------------------
-    public void TryPlaceRoom(int index)
+    void GenerateRoomSlots()
     {
-        if (!isPlacingRoom)
-        {
-            Debug.Log("Not in placement mode");
-            return;
-        }
-
-        // เช็คว่า index อยู่ในขอบเขต array
-        if (index < 0 || index >= rooms.Count)
-        {
-            Debug.LogWarning($"TryPlaceRoom index out of range: {index}, rooms.Count = {rooms.Count}");
-            return;
-        }
-
-        // ถ้าห้องนี้ถูกซื้อแล้วจะมี roomType != null
-        if (rooms[index].roomType != null)
-        {
-            Debug.Log("This slot already has a room!");
-            return;
-        }
-
-        // เซ็ตข้อมูลห้องใหม่
-        rooms[index].roomType = roomToPlace;
-        rooms[index].isRented = false;
-        rooms[index].rentStartYear = 0;
-        rooms[index].rentStartMonth = 0;
-        rooms[index].rentStartDay = 0;
-
-        // อัปเดต UI ห้องนั้น
-        //UpdateRoomView(index);
-
-        Debug.Log("Room placed at slot " + index);
-
-        // ออกจากโหมดวางห้อง
-        isPlacingRoom = false;
-        roomToPlace = null;
-
-        SaveData();
-    }
-    private void GenerateRoomSlots()
-    {
-        if (roomSlotPrefab == null)
-        {
-            Debug.LogError("RoomSlotPrefab is NULL!");
-            return;
-        }
-        if (roomContainer == null)
-        {
-            Debug.LogError("RoomContainer is NULL!");
-            return;
-        }
-        // roomViews = new RoomView[totalRoomSlots];
-        rooms = new List<Room>();
+        // เดิม: rooms = new Room[totalRoomSlots];
+        rooms = new List<Room>();   // ✅ ใช้ List แทน
 
         for (int i = 0; i < totalRoomSlots; i++)
         {
-            GameObject slot = Instantiate(roomSlotPrefab, roomContainer);
-            RoomSlotUI ui = slot.GetComponent<RoomSlotUI>();
+            var obj = Instantiate(roomSlotPrefab, roomContainer);
+            var view = obj.GetComponent<RoomView>();
+            var ui = obj.GetComponent<RoomSlotUI>();
+
             ui.slotIndex = i;
             ui.idleManager = this;
 
-            RoomView view = slot.GetComponent<RoomView>();
-            // roomViews[i] = view;
+            // เดิม: rooms[i] = new Room();
+            rooms.Add(new Room());   // ✅ เพิ่มห้องใหม่เข้า List
 
-            //rooms[i] = new Room(); // ห้องใหม่ทั้งหมดเริ่มเป็นห้องว่าง
-            rooms.Add(new Room());
+            if (view != null)
+                view.Setup(null, false);
         }
+
+        // 🔥 ดึง slot ทั้งหมดให้ RoomPlacementManager
+        placementManager.RegisterSlots();
     }
-    // public void BuyRoom(RoomTypeSO type)
-    // {
-    //     if (currentGold < type.Cost)
-    //     {
-    //         Debug.Log("Not enough gold.");
-    //         return;
-    //     }
 
-    //     currentGold -= type.Cost;
-    //     roomToPlace = type;
-    //     isPlacingRoom = true;
-
-    //     UpdateGoldUI();
-    // }
 
 }
