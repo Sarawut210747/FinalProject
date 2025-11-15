@@ -65,7 +65,7 @@ public class IdleManager : MonoBehaviour
     public Transform roomContainer;
     public int totalRoomSlots;
 
-    // public RoomView[] roomViews; // ถ้านายอยากเก็บอ้างอิงแต่ละ RoomView ทีหลังค่อยเปิดใช้
+    public RoomView[] roomViews; // ถ้านายอยากเก็บอ้างอิงแต่ละ RoomView ทีหลังค่อยเปิดใช้
 
     // prefix สำหรับ key ของข้อมูลห้องใน PlayerPrefs
     const string KEY_ROOM_PREFIX = "IDLE_ROOM_";
